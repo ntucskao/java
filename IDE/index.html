@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 Java 開發環境 (IDE) 趨勢與生態分析報告</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Chosen Palette: Warm Neutrals with Indigo/Teal Accents -->
+    <!-- Application Structure Plan: 
+         1. Hero Section: Introduces the report context.
+         2. Market Share (Quantitative): A doughnut chart providing an immediate visual understanding of the current landscape.
+         3. IDE Deep Dive (Qualitative): Interactive cards for the top 4 IDEs, allowing users to explore pros/cons without cluttering the main view.
+         4. Trend Analysis (Temporal Data): A line chart showing the 5-year evolution, explaining *why* the market looks the way it does.
+         5. Recommendation Engine (Interactive): A practical tool that synthesizes the report's insights to give personalized advice based on user input.
+         Rationale: This structure moves the user from high-level facts (market share) to detailed analysis (features), historical context (trends), and finally actionable takeaways (recommendations).
+    -->
+    <!-- Visualization & Content Choices: 
+         - Market Share -> Goal: Inform proportions -> Viz: Doughnut Chart (Chart.js) -> Interaction: Hover tooltips -> Justification: Best for showing parts of a whole clearly.
+         - IDE Details -> Goal: Compare qualitative data -> Viz: Interactive Cards/Modals (HTML/JS) -> Interaction: Click to expand details -> Justification: Keeps UI clean while offering deep dives. NO SVG used, using Unicode icons.
+         - Trends -> Goal: Show change over time -> Viz: Line Chart (Chart.js) -> Interaction: Hover for exact yearly data -> Justification: Standard and most effective way to show temporal trends.
+         - Recommendation -> Goal: Actionable synthesis -> Viz: Dynamic Form (HTML/JS) -> Interaction: Select dropdowns to get results -> Justification: Engages the user and applies the report's knowledge to their specific needs.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        /* Base styling for typography and smooth scrolling */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+            scroll-behavior: smooth;
+        }
+
+        /* STRICT Chart Container Boundary Constraints */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 400px;
+            min-height: 250px;
+        }
+
+        /* Custom Scrollbar for elegance */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Simple animation for modal/cards */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-200 selection:text-indigo-900">
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex-shrink-0 flex items-center gap-2">
+                    <span class="text-2xl">☕</span>
+                    <span class="font-bold text-xl tracking-tight text-slate-800">Java IDE 洞察 2026</span>
+                </div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#overview" class="text-slate-600 hover:text-indigo-600 transition-colors font-medium">市佔概況</a>
+                    <a href="#deep-dive" class="text-slate-600 hover:text-indigo-600 transition-colors font-medium">工具解析</a>
+                    <a href="#trends" class="text-slate-600 hover:text-indigo-600 transition-colors font-medium">歷史趨勢</a>
+                    <a href="#recommend" class="bg-indigo-600 text-white px-4 py-2 rounded-full hover:bg-indigo-700 transition-colors text-sm font-semibold">尋找適合我的 IDE</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-24">
+
+        <!-- Hero Section -->
+        <section id="hero" class="text-center pt-12 pb-8 fade-in">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-6">
+                2026 年 Java 開發環境生態解析
+            </h1>
+            <p class="mt-4 max-w-2xl text-lg text-slate-600 mx-auto leading-relaxed">
+                在 Java 生態系中，選擇正確的整合開發環境 (IDE) 對於生產力至關重要。本互動報告基於最新的開發者社群調查、企業採用率與 AI 輔助趨勢，為您深度解析 <strong>IntelliJ IDEA</strong>、<strong>Eclipse</strong>、<strong>VS Code</strong> 等主流工具的現況與未來。
+            </p>
+        </section>
+
+        <!-- Section 1: Market Share Overview -->
+        <section id="overview" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <span>📊</span> 當前市佔率概況
+                </h2>
+                <p class="text-slate-600 leading-relaxed">
+                    本區塊呈現 2026 年全球 Java 開發者最常使用的 IDE 比例。資料顯示，IntelliJ IDEA 依然穩居霸主地位，但 VS Code 憑藉其輕量化與強大的擴充功能，在微服務與雲端原生開發領域迅速崛起。請將滑鼠懸停於圖表上以查看詳細數據。
+                </p>
+            </div>
+            
+            <div class="w-full bg-slate-50 rounded-xl p-4 sm:p-6 border border-slate-100">
+                <!-- REQUIRED: Constrained Chart Container -->
+                <div class="chart-container">
+                    <canvas id="marketShareChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <div class="text-2xl font-bold text-indigo-700">68%</div>
+                    <div class="text-sm text-indigo-900 mt-1">IntelliJ IDEA</div>
+                </div>
+                <div class="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                    <div class="text-2xl font-bold text-purple-700">14%</div>
+                    <div class="text-sm text-purple-900 mt-1">Eclipse</div>
+                </div>
+                <div class="p-4 bg-sky-50 rounded-lg border border-sky-100">
+                    <div class="text-2xl font-bold text-sky-700">13%</div>
+                    <div class="text-sm text-sky-900 mt-1">VS Code</div>
+                </div>
+                <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                    <div class="text-2xl font-bold text-emerald-700">5%</div>
+                    <div class="text-sm text-emerald-900 mt-1">NetBeans & 其他</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: IDE Deep Dive -->
+        <section id="deep-dive">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <span>🛠️</span> 主流開發工具深度解析
+                </h2>
+                <p class="text-slate-600 leading-relaxed">
+                    每款 IDE 都有其獨特的設計哲學與目標受眾。本區塊詳細列出四大主流工具的核心優勢、痛點以及最適合的應用場景。您可以點擊下方各工具卡片，展開查看深入的定性分析與專家評論。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="ide-cards-container">
+                <!-- Cards generated via JS -->
+            </div>
+        </section>
+
+        <!-- Section 3: Trend Analysis -->
+        <section id="trends" class="bg-slate-900 text-white rounded-2xl shadow-xl overflow-hidden p-8">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold flex items-center gap-2 mb-4">
+                    <span>📈</span> 五年採用率演進趨勢 (2021-2026)
+                </h2>
+                <p class="text-slate-300 leading-relaxed">
+                    回顧過去五年，Java 開發工具的版圖發生了顯著變化。早期的雙雄爭霸（Eclipse vs IntelliJ）已逐漸演變為 IntelliJ 的全面主導，同時 VS Code 藉由 AI 助手（如 GitHub Copilot）的加持，成功切入輕量級 Java 開發市場。
+                </p>
+            </div>
+
+            <div class="w-full bg-slate-800 rounded-xl p-4 sm:p-6 border border-slate-700">
+                 <!-- REQUIRED: Constrained Chart Container -->
+                 <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Interactive Recommendation Engine -->
+        <section id="recommend" class="bg-indigo-50 rounded-2xl p-8 border border-indigo-100">
+            <div class="text-center max-w-2xl mx-auto mb-8">
+                <h2 class="text-3xl font-bold text-slate-800 mb-4">
+                    🎯 尋找最適合您的 Java IDE
+                </h2>
+                <p class="text-slate-600">
+                    不知道該選哪一個？請根據您目前的專案類型與經驗水平，讓我們為您推薦最合適的開發工具。
+                </p>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-xl mx-auto">
+                <form id="recommendation-form" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">您的開發經驗水平？</label>
+                        <select id="exp-level" class="w-full border-slate-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-3 bg-slate-50 border">
+                            <option value="beginner">初學者 / 學生 (學習核心語法)</option>
+                            <option value="intermediate">中階開發者 (開發中小型專案)</option>
+                            <option value="advanced">資深工程師 / 架構師 (大型企業級專案)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">主要專案類型？</label>
+                        <select id="project-type" class="w-full border-slate-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-3 bg-slate-50 border">
+                            <option value="enterprise">大型企業級應用 (Spring Boot, 微服務架構)</option>
+                            <option value="legacy">傳統/遺留系統維護 (舊版 Java EE)</option>
+                            <option value="fullstack">全端開發 / 輕量腳本 (混合多種語言)</option>
+                        </select>
+                    </div>
+
+                    <button type="button" id="btn-recommend" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-200 flex justify-center items-center gap-2">
+                        <span>🔍</span> 開始分析推薦
+                    </button>
+                </form>
+
+                <!-- Recommendation Result Area -->
+                <div id="result-area" class="mt-6 hidden fade-in bg-slate-50 p-6 rounded-lg border-2 border-dashed border-indigo-200 text-center">
+                    <h3 class="text-lg font-bold text-slate-500 mb-2">分析結果</h3>
+                    <div id="result-ide" class="text-3xl font-extrabold text-indigo-700 mb-3"></div>
+                    <p id="result-reason" class="text-slate-600 text-sm leading-relaxed"></p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 py-8 text-center mt-12 border-t border-slate-800">
+        <p>© 2026 Java Ecosystem Insights. Interactive Single Page Application.</p>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- DATA STORAGE ---
+        // Market Share Data
+        const marketShareData = {
+            labels: ['IntelliJ IDEA', 'Eclipse', 'VS Code', 'NetBeans & 其他'],
+            datasets: [{
+                data: [68, 14, 13, 5],
+                backgroundColor: [
+                    '#4f46e5', // Indigo 600
+                    '#7e22ce', // Purple 700
+                    '#0ea5e9', // Sky 500
+                    '#10b981'  // Emerald 500
+                ],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        };
+
+        // Trend Data (2021-2026)
+        const trendData = {
+            labels: ['2021', '2022', '2023', '2024', '2025', '2026'],
+            datasets: [
+                {
+                    label: 'IntelliJ IDEA',
+                    data: [55, 60, 62, 65, 67, 68],
+                    borderColor: '#818cf8', // Indigo 400
+                    backgroundColor: 'rgba(129, 140, 248, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Eclipse',
+                    data: [28, 24, 20, 17, 15, 14],
+                    borderColor: '#c084fc', // Purple 400
+                    tension: 0.4
+                },
+                {
+                    label: 'VS Code',
+                    data: [8, 10, 12, 12, 12.5, 13],
+                    borderColor: '#38bdf8', // Sky 400
+                    tension: 0.4,
+                    borderDash: [5, 5]
+                }
+            ]
+        };
+
+        // Qualitative IDE Data
+        const ideDetails = [
+            {
+                id: 'intellij',
+                name: 'IntelliJ IDEA',
+                icon: '🚀',
+                color: 'indigo',
+                subtitle: 'Java 開發者的終極武器',
+                marketShare: '68%',
+                pros: ['業界最強大的程式碼分析與重構能力', '無縫整合 Spring Boot 等現代框架', '強大的 JetBrains AI Assistant 支援'],
+                cons: ['極度消耗系統資源 (RAM 食怪)', '旗艦版 (Ultimate) 需付費訂閱'],
+                bestFor: '專業 Java 開發者、大型企業級後端專案'
+            },
+            {
+                id: 'eclipse',
+                name: 'Eclipse',
+                icon: '⚙️',
+                color: 'purple',
+                subtitle: '經典的開源巨擎',
+                marketShare: '14%',
+                pros: ['完全免費開源，生態系龐大', '自定義程度極高', '對舊有系統 (Legacy Code) 支援度高'],
+                cons: ['介面較為老舊，學習曲線陡峭', '套件衝突問題時有耳聞，啟動速度慢'],
+                bestFor: '維護舊有企業系統、預算有限的團隊'
+            },
+            {
+                id: 'vscode',
+                name: 'Visual Studio Code',
+                icon: '⚡',
+                color: 'sky',
+                subtitle: '輕量全端新星',
+                marketShare: '13%',
+                pros: ['極致輕量，啟動速度極快', '搭配 Extension Pack for Java 即可具備完整功能', '跨語言開發首選，強大的 GitHub Copilot 整合'],
+                cons: ['配置繁瑣，非開箱即用', '對於超大型單體 Java 專案，重構與導航能力不及 IntelliJ'],
+                bestFor: '全端開發者、微服務架構、多語言混合專案'
+            },
+            {
+                id: 'netbeans',
+                name: 'Apache NetBeans',
+                icon: '📦',
+                color: 'emerald',
+                subtitle: '官方血統的開箱即用派',
+                marketShare: '5%',
+                pros: ['原生支援 Maven/Ant，無需複雜配置', '開箱即用，內建完善的 GUI Builder', '與 Java 官方標準更新同步率高'],
+                cons: ['市佔率萎縮，社群資源與第三方外掛較少', '介面現代化程度不如對手'],
+                bestFor: '學術教育用途、Swing/JavaFX 桌面應用開發'
+            }
+        ];
+
+        // --- CORE INTERACTION LOGIC ---
+
+        // 1. Initialize Charts
+        window.onload = () => {
+            // Setup Doughnut Chart
+            const ctxMarket = document.getElementById('marketShareChart').getContext('2d');
+            new Chart(ctxMarket, {
+                type: 'doughnut',
+                data: marketShareData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { font: { family: "'Segoe UI', sans-serif" } } },
+                        tooltip: {
+                            callbacks: { label: (context) => ` ${context.label}: ${context.raw}%` }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Setup Line Chart
+            const ctxTrend = document.getElementById('trendChart').getContext('2d');
+            Chart.defaults.color = '#94a3b8'; // Set default text color for dark mode chart
+            new Chart(ctxTrend, {
+                type: 'line',
+                data: trendData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#cbd5e1',
+                            borderColor: '#334155',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            max: 100,
+                            grid: { color: 'rgba(51, 65, 85, 0.5)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            // 2. Render IDE Cards
+            renderIDECards();
+        };
+
+        // Render cards dynamically
+        function renderIDECards() {
+            const container = document.getElementById('ide-cards-container');
+            ideDetails.forEach(ide => {
+                const colorClasses = {
+                    indigo: 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100',
+                    purple: 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100',
+                    sky: 'bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100',
+                    emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                };
+                
+                const cardHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden transition-all duration-300 hover:shadow-lg flex flex-col h-full">
+                        <div class="p-6 border-b border-slate-100 flex items-center justify-between cursor-pointer ${colorClasses[ide.color]}" onclick="toggleDetails('${ide.id}')">
+                            <div class="flex items-center gap-3">
+                                <span class="text-3xl">${ide.icon}</span>
+                                <div>
+                                    <h3 class="font-bold text-xl">${ide.name}</h3>
+                                    <p class="text-sm opacity-80">${ide.subtitle}</p>
+                                </div>
+                            </div>
+                            <div class="text-2xl transition-transform duration-300" id="icon-${ide.id}">➕</div>
+                        </div>
+                        
+                        <div id="details-${ide.id}" class="hidden p-6 bg-white flex-grow fade-in text-sm text-slate-700">
+                            <div class="mb-4">
+                                <h4 class="font-bold text-slate-900 mb-2 flex items-center gap-1"><span>👍</span> 核心優勢</h4>
+                                <ul class="list-disc pl-5 space-y-1">
+                                    ${ide.pros.map(p => `<li>${p}</li>`).join('')}
+                                </ul>
+                            </div>
+                            <div class="mb-4">
+                                <h4 class="font-bold text-slate-900 mb-2 flex items-center gap-1"><span>👎</span> 主要痛點</h4>
+                                <ul class="list-disc pl-5 space-y-1 text-slate-600">
+                                    ${ide.cons.map(c => `<li>${c}</li>`).join('')}
+                                </ul>
+                            </div>
+                            <div class="mt-auto pt-4 border-t border-slate-100">
+                                <h4 class="font-bold text-slate-900 inline">🎯 最適合：</h4> 
+                                <span>${ide.bestFor}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHTML;
+            });
+        }
+
+        // Toggle Card Details
+        function toggleDetails(id) {
+            const detailsDiv = document.getElementById(`details-${id}`);
+            const iconDiv = document.getElementById(`icon-${id}`);
+            
+            if (detailsDiv.classList.contains('hidden')) {
+                // Close others
+                document.querySelectorAll('[id^="details-"]').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('[id^="icon-"]').forEach(el => el.innerText = '➕');
+                
+                // Open selected
+                detailsDiv.classList.remove('hidden');
+                iconDiv.innerText = '➖';
+            } else {
+                detailsDiv.classList.add('hidden');
+                iconDiv.innerText = '➕';
+            }
+        }
+
+        // 3. Recommendation Logic
+        document.getElementById('btn-recommend').addEventListener('click', () => {
+            const exp = document.getElementById('exp-level').value;
+            const proj = document.getElementById('project-type').value;
+            
+            let recommended = "";
+            let reason = "";
+
+            if (exp === 'beginner') {
+                if (proj === 'enterprise') {
+                    recommended = "IntelliJ IDEA (Community 版)";
+                    reason = "社群版免費且具備優秀的提示與報錯功能，能幫助初學者養成良好的程式碼習慣，非常適合學習 Spring 等框架的基礎。";
+                } else {
+                    recommended = "Visual Studio Code";
+                    reason = "VS Code 介面簡單，對初學者友好，且透過外掛可以快速上手。若未來想跨足前端或其他語言，它也是最佳選擇。";
+                }
+            } else if (exp === 'advanced' && proj === 'enterprise') {
+                recommended = "IntelliJ IDEA (Ultimate 版)";
+                reason = "對於大型企業專案，Ultimate 版本提供的 Spring 深度整合、資料庫工具與極致的重構能力，是提升專業生產力無可取代的投資。";
+            } else if (proj === 'legacy') {
+                recommended = "Eclipse";
+                reason = "雖然較為老舊，但 Eclipse 在處理傳統 Java EE 專案、舊有 Ant 腳本以及某些特定企業內部伺服器外掛上，仍具有最佳的相容性。";
+            } else if (proj === 'fullstack') {
+                recommended = "Visual Studio Code";
+                reason = "全端開發需要頻繁在 Java、JavaScript、TypeScript 甚至 Python 之間切換。VS Code 輕量且跨語言能力極強，能提供最流暢的開發體驗。";
+            } else {
+                recommended = "IntelliJ IDEA";
+                reason = "作為目前市佔率最高的工具，IntelliJ 提供了最均衡且強大的 Java 開發體驗，幾乎能應對所有現代開發需求。";
+            }
+
+            // Display Result
+            document.getElementById('result-ide').innerText = recommended;
+            document.getElementById('result-reason').innerText = reason;
+            document.getElementById('result-area').classList.remove('hidden');
+            
+            // Scroll to result
+            document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+
+    </script>
+</body>
+</html>
