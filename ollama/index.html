@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>開源 LLM 部署架構解析與市佔分析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            bg: '#F9FAFB',
+                            text: '#1F2937',
+                            muted: '#6B7280',
+                            lmstudio: '#10B981', 
+                            ollama: '#3B82F6',   
+                            vllm: '#EF4444',     
+                            surface: '#FFFFFF',
+                            border: '#E5E7EB'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: theme('colors.brand.bg');
+            color: theme('colors.brand.text');
+            overflow-x: hidden;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .nav-btn.active {
+            border-bottom-width: 3px;
+            border-color: theme('colors.brand.ollama');
+            color: theme('colors.brand.ollama');
+            font-weight: 600;
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+    <!-- Chosen Palette: Warm Minimalist. Background: Off-white (#F9FAFB). Accent Colors: Green for LM Studio (friendly, consumer), Blue for Ollama (developer standard), Red for vLLM (high performance, server). -->
+    <!-- Application Structure Plan: Tabbed Single Page Application (SPA). 
+         1. '架構與邊界' (Architecture & Boundaries): Addresses the core question "Are they all single-player?" using interactive selection cards and detailed text blocks.
+         2. '技術矩陣' (Technical Matrix): A Radar chart comparing technical dimensions (ease of use, API, concurrency). 
+         3. '市佔分析' (Market Analysis): A Grouped Bar chart answering "Which is most used?" by breaking down popularity by use case (Desktop vs Dev vs Server).
+         4. '決策引擎' (Decision Engine): An interactive wizard translating findings into actionable recommendations based on user persona. 
+         This structure logically moves from conceptual understanding to data comparison, and finally to practical application. -->
+    <!-- Visualization & Content Choices: 
+         - Architecture (Goal: Inform): Interactive Grid Cards + JS Update (No SVG). Justification: Clear spatial separation of the three tools with dynamic text expansion to avoid text walls.
+         - Technical Matrix (Goal: Compare): Radar Chart via Chart.js. Justification: Optimal for multidimensional feature comparison across three distinct profiles.
+         - Market Share (Goal: Inform/Compare): Stacked/Grouped Bar Chart via Chart.js. Justification: Clearly proves that "most used" is highly contextual based on the environment.
+         - Decision Engine (Goal: Action): Interactive Buttons + JS Result Reveal. Justification: Drives user engagement and personalizes the report's conclusion. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <header class="bg-brand-surface shadow-sm sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+                <span>📊</span> LLM 部署架構解析
+            </h1>
+            <p class="mt-1 text-sm text-brand-muted">Ollama vs. LM Studio vs. vLLM：單機運行與伺服器架構的本質差異</p>
+        </div>
+        <div class="border-t border-brand-border bg-white">
+            <nav class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 overflow-x-auto scrollbar-hide" id="main-nav">
+                <button data-target="arch" class="nav-btn active whitespace-nowrap py-3 px-1 text-sm text-brand-muted hover:text-brand-text transition-colors">架構與邊界</button>
+                <button data-target="matrix" class="nav-btn whitespace-nowrap py-3 px-1 text-sm text-brand-muted hover:text-brand-text transition-colors">技術能力矩陣</button>
+                <button data-target="market" class="nav-btn whitespace-nowrap py-3 px-1 text-sm text-brand-muted hover:text-brand-text transition-colors">市佔熱度分析</button>
+                <button data-target="decision" class="nav-btn whitespace-nowrap py-3 px-1 text-sm text-brand-muted hover:text-brand-text transition-colors">專屬決策引擎</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <section id="arch" class="fade-in block">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-3">它們都是「單機版」嗎？連線邊界解析</h2>
+                <p class="text-brand-muted leading-relaxed max-w-4xl">
+                    本區塊旨在釐清這三款工具的底層運行邏輯。雖然它們都能安裝在個人電腦上，但它們的「網路邊界」與「服務對象」截然不同。點擊下方卡片可查看詳細的架構說明，這有助於您理解為何某些工具適合個人，而某些適合企業。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <button onclick="updateArch('lmstudio', this)" class="arch-card text-left bg-brand-surface p-6 rounded-xl border-2 border-transparent shadow-sm hover:shadow-md transition-all ring-1 ring-brand-border">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="px-2 py-1 bg-green-100 text-brand-lmstudio text-xs font-bold rounded">個人桌面</span>
+                        <span class="text-3xl">🖥️</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-1">LM Studio</h3>
+                    <p class="text-sm text-brand-muted">封閉式單機應用程式</p>
+                </button>
+
+                <button onclick="updateArch('ollama', this)" class="arch-card text-left bg-brand-surface p-6 rounded-xl border-2 border-brand-ollama shadow-sm hover:shadow-md transition-all ring-1 ring-brand-border">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="px-2 py-1 bg-blue-100 text-brand-ollama text-xs font-bold rounded">開發服務</span>
+                        <span class="text-3xl">🦙</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-1">Ollama</h3>
+                    <p class="text-sm text-brand-muted">C/S 架構背景推論服務</p>
+                </button>
+
+                <button onclick="updateArch('vllm', this)" class="arch-card text-left bg-brand-surface p-6 rounded-xl border-2 border-transparent shadow-sm hover:shadow-md transition-all ring-1 ring-brand-border">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="px-2 py-1 bg-red-100 text-brand-vllm text-xs font-bold rounded">伺服器引擎</span>
+                        <span class="text-3xl">🚀</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-1">vLLM</h3>
+                    <p class="text-sm text-brand-muted">企業級 API 推論節點</p>
+                </button>
+            </div>
+
+            <div class="bg-brand-surface rounded-xl p-6 md:p-8 shadow-sm border border-brand-border min-h-[200px] flex items-center transition-opacity duration-300" id="arch-detail-box">
+                <div class="flex flex-col md:flex-row gap-6 items-start w-full">
+                    <div class="text-6xl" id="detail-icon">🦙</div>
+                    <div class="flex-grow">
+                        <h4 class="text-2xl font-bold mb-3 text-brand-ollama" id="detail-title">Ollama：最具彈性的邊界</h4>
+                        <p class="text-brand-text leading-relaxed mb-4" id="detail-desc">
+                            Ollama 採用的是 Client-Server（客戶端-伺服器）架構。它安裝後會以背景服務運行。當你在終端機輸入指令或使用其他 UI 時，其實是發送請求給本地伺服器。雖然預設只允許本地端存取（localhost），但只要修改環境變數，即可將其轉變為一台區域網路內的 API 伺服器，讓其他裝置連線。它是一個「本地優先的服務」。
+                        </p>
+                        <div class="flex items-center gap-2 p-3 bg-gray-50 rounded-lg text-sm font-medium border border-gray-100">
+                            <span class="w-3 h-3 rounded-full bg-brand-ollama" id="detail-dot"></span>
+                            <span id="detail-status" class="text-gray-700">網路狀態：預設本地封閉，具備完整對外連線擴展性。</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="matrix" class="hidden">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-3">技術能力多維度對比</h2>
+                <p class="text-brand-muted leading-relaxed max-w-4xl">
+                    評估這三款工具時，必須了解它們在設計上的取捨。極致的效能（如 vLLM）往往伴隨著陡峭的學習曲線，而極致的易用性（如 LM Studio）則可能犧牲進階的設定與吞吐量。本區塊透過雷達圖，將各工具在不同技術維度的表現具象化。
+                </p>
+            </div>
+            
+            <div class="bg-brand-surface p-6 md:p-8 rounded-xl shadow-sm border border-brand-border">
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-4 bg-green-50 rounded-lg border border-green-100">
+                        <span class="block font-bold text-brand-lmstudio mb-1">LM Studio 優勢</span>
+                        <span class="text-sm text-gray-600">圖形化介面滿分，內建模型下載器，零配置直接聊天。</span>
+                    </div>
+                    <div class="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                        <span class="block font-bold text-brand-ollama mb-1">Ollama 優勢</span>
+                        <span class="text-sm text-gray-600">開發者體驗極佳，一行指令啟動，完美相容多數第三方 AI 應用。</span>
+                    </div>
+                    <div class="p-4 bg-red-50 rounded-lg border border-red-100">
+                        <span class="block font-bold text-brand-vllm mb-1">vLLM 優勢</span>
+                        <span class="text-sm text-gray-600">PagedAttention 專利技術，在大量並發請求下吞吐量碾壓對手。</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="market" class="hidden">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-3">「最多人用」的真相分析</h2>
+                <p class="text-brand-muted leading-relaxed max-w-4xl">
+                    針對「哪一個最多人使用？」這個問題，答案並非單一。因為不同的工具主宰了不同的生態圈。本區塊透過分組長條圖呈現各工具在三大主要應用場景的相對熱度佔比（基於開源社群、下載趨勢與企業案例綜合推估），幫助您看清真實的市場分佈。
+                </p>
+            </div>
+
+            <div class="bg-brand-surface p-6 md:p-8 rounded-xl shadow-sm border border-brand-border">
+                <div class="chart-container">
+                    <canvas id="barChart"></canvas>
+                </div>
+                <div class="mt-8 p-5 bg-gray-50 border border-gray-200 rounded-lg">
+                    <h4 class="font-bold text-gray-800 mb-2">💡 數據洞察：</h4>
+                    <p class="text-sm text-gray-600 leading-relaxed mb-2">
+                        1. <strong>在桌面消費者市場</strong>，LM Studio 憑藉無痛安裝佔據絕對優勢，多數非工程師玩家首選。
+                    </p>
+                    <p class="text-sm text-gray-600 leading-relaxed mb-2">
+                        2. <strong>在 GitHub 與開發者生態</strong>，Ollama 是王者。幾乎所有開源 RAG 或 Agent 專案都預設支援 Ollama。
+                    </p>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        3. <strong>在企業資料中心與雲端 API 服務</strong>，vLLM 是唯一的標準答案，因為只有它能高效處理上萬人的同時提問。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section id="decision" class="hidden">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-3">互動式決策指南</h2>
+                <p class="text-brand-muted leading-relaxed max-w-4xl">
+                    綜合前面的架構、能力與市佔分析，本區塊將協助您進行最終決策。請根據您最常遭遇的情境或您的專業身份，選擇下方最符合的描述，系統將為您推薦最適合的部署方案。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="flex flex-col gap-4">
+                    <button onclick="processDecision('lmstudio', this)" class="decision-btn w-full text-left p-5 rounded-xl border border-brand-border bg-brand-surface hover:bg-gray-50 focus:outline-none transition-colors">
+                        <span class="block text-lg font-bold text-gray-900 mb-1">我是非技術背景的嘗鮮者</span>
+                        <span class="block text-sm text-brand-muted">我只想下載最新的模型來聊天，不想碰到黑漆漆的終端機指令碼。</span>
+                    </button>
+                    <button onclick="processDecision('ollama', this)" class="decision-btn w-full text-left p-5 rounded-xl border border-brand-border bg-brand-surface hover:bg-gray-50 focus:outline-none transition-colors">
+                        <span class="block text-lg font-bold text-gray-900 mb-1">我是軟體應用開發者</span>
+                        <span class="block text-sm text-brand-muted">我要在本地快速啟動模型，寫 Python/JS 程式串接 API，做功能測試。</span>
+                    </button>
+                    <button onclick="processDecision('vllm', this)" class="decision-btn w-full text-left p-5 rounded-xl border border-brand-border bg-brand-surface hover:bg-gray-50 focus:outline-none transition-colors">
+                        <span class="block text-lg font-bold text-gray-900 mb-1">我是伺服器端系統架構師</span>
+                        <span class="block text-sm text-brand-muted">公司有獨立 GPU 伺服器，需要把開源模型包裝成高併發服務給外部用戶使用。</span>
+                    </button>
+                </div>
+
+                <div id="decision-result" class="bg-brand-surface border border-brand-border rounded-xl p-8 flex flex-col justify-center items-center text-center shadow-sm">
+                    <div class="text-6xl text-gray-300 mb-4 animate-bounce">👈</div>
+                    <h3 class="text-xl font-bold text-gray-700">請從左側選擇您的身份</h3>
+                    <p class="text-brand-muted mt-2">我們將為您提供專屬的工具推薦與理由</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const state = {
+            radarRendered: false,
+            barRendered: false,
+            radarChart: null,
+            barChart: null
+        };
+
+        const archData = {
+            lmstudio: {
+                icon: '🖥️',
+                title: 'LM Studio：單機封閉的隨身寶',
+                desc: 'LM Studio 就像是一個「播放器」。它把所有功能（搜尋、下載、模型運行、對話界面）都包裝在一個軟體視窗內。它的預設狀態是完全隔絕於網路的，旨在提供最安全、無痛的單機桌面體驗。這使得它成為非技術用戶私密測試模型的首選，但無法作為網路服務運作。',
+                color: 'text-brand-lmstudio',
+                bg: 'bg-brand-lmstudio',
+                status: '網路狀態：預設完全封閉，純單機運行。'
+            },
+            ollama: {
+                icon: '🦙',
+                title: 'Ollama：最具彈性的邊界',
+                desc: 'Ollama 採用的是 Client-Server（客戶端-伺服器）架構。它安裝後會以背景服務運行。當你在終端機輸入指令或使用其他 UI 時，其實是發送請求給本地伺服器。雖然預設只允許本地端存取（localhost），但只要修改環境變數，即可將其轉變為一台區域網路內的 API 伺服器，讓其他裝置連線。它是一個「本地優先的服務」。',
+                color: 'text-brand-ollama',
+                bg: 'bg-brand-ollama',
+                status: '網路狀態：預設本地封閉，具備完整對外連線擴展性。'
+            },
+            vllm: {
+                icon: '🚀',
+                title: 'vLLM：生而為伺服器的引擎',
+                desc: 'vLLM 雖然可以安裝在單機（只要有強大的 GPU），但它的技術核心（如 PagedAttention）是為了解決「高併發」而生。它沒有圖形化聊天視窗，啟動後直接化身為高性能的 API 節點。它的目標是像 AWS 或 Google Cloud 那樣提供穩定的分散式網路服務，而非個人桌面應用。',
+                color: 'text-brand-vllm',
+                bg: 'bg-brand-vllm',
+                status: '網路狀態：原生 API 伺服器，專為對外提供並發連線服務。'
+            }
+        };
+
+        const decisionData = {
+            lmstudio: {
+                icon: '🖥️',
+                title: '強烈推薦：LM Studio',
+                desc: '對於不熟悉指令碼的用戶，LM Studio 是無可替代的。它內建的 HuggingFace 模型市集讓您一鍵下載、立刻開聊。它完美的單機封閉特性也保證了資料絕對不會外洩，是您在筆電上私密學習 AI 的最佳選擇。',
+                colorClass: 'text-brand-lmstudio',
+                borderClass: 'border-brand-lmstudio'
+            },
+            ollama: {
+                icon: '🦙',
+                title: '強烈推薦：Ollama',
+                desc: '身為開發者，Ollama 是您的終極利器。它極簡的 CLI 操作與完美相容 OpenAI 的 API 規格，讓您能無縫對接 LangChain、Dify 等任何 AI 框架。它是目前本地 AI 開發生態系中最穩定的底層基礎設施。',
+                colorClass: 'text-brand-ollama',
+                borderClass: 'border-brand-ollama'
+            },
+            vllm: {
+                icon: '🚀',
+                title: '強烈推薦：vLLM',
+                desc: '在生產環境中，吞吐量就是金錢。vLLM 專門為伺服器端的高併發場景設計，能極大化 GPU 的記憶體利用率。當您需要讓數百名使用者同時對模型發出請求時，vLLM 是業界公認唯一的標準答案。',
+                colorClass: 'text-brand-vllm',
+                borderClass: 'border-brand-vllm'
+            }
+        };
+
+        function switchTab(e) {
+            if (!e.target.classList.contains('nav-btn')) return;
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            const targetId = e.target.getAttribute('data-target');
+            document.querySelectorAll('main > section').forEach(sec => {
+                sec.classList.remove('block', 'fade-in');
+                sec.classList.add('hidden');
+            });
+            
+            const activeSection = document.getElementById(targetId);
+            activeSection.classList.remove('hidden');
+            void activeSection.offsetWidth; 
+            activeSection.classList.add('block', 'fade-in');
+
+            if (targetId === 'matrix' && !state.radarRendered) renderRadar();
+            if (targetId === 'market' && !state.barRendered) renderBar();
+        }
+
+        function updateArch(key, el) {
+            document.querySelectorAll('.arch-card').forEach(card => {
+                card.classList.remove('border-brand-lmstudio', 'border-brand-ollama', 'border-brand-vllm');
+                card.classList.add('border-transparent');
+            });
+            
+            let bColor = 'border-brand-ollama';
+            if (key === 'lmstudio') bColor = 'border-brand-lmstudio';
+            if (key === 'vllm') bColor = 'border-brand-vllm';
+            el.classList.replace('border-transparent', bColor);
+
+            const detailBox = document.getElementById('arch-detail-box');
+            detailBox.style.opacity = '0';
+            
+            setTimeout(() => {
+                const data = archData[key];
+                document.getElementById('detail-icon').textContent = data.icon;
+                document.getElementById('detail-title').textContent = data.title;
+                document.getElementById('detail-title').className = `text-2xl font-bold mb-3 ${data.color}`;
+                document.getElementById('detail-desc').textContent = data.desc;
+                document.getElementById('detail-dot').className = `w-3 h-3 rounded-full ${data.bg}`;
+                document.getElementById('detail-status').textContent = data.status;
+                detailBox.style.opacity = '1';
+            }, 200);
+        }
+
+        function processDecision(key, el) {
+            document.querySelectorAll('.decision-btn').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-brand-ollama', 'ring-brand-lmstudio', 'ring-brand-vllm');
+            });
+            
+            let ringColor = 'ring-brand-ollama';
+            if (key === 'lmstudio') ringColor = 'ring-brand-lmstudio';
+            if (key === 'vllm') ringColor = 'ring-brand-vllm';
+            el.classList.add('ring-2', ringColor);
+
+            const resDiv = document.getElementById('decision-result');
+            const data = decisionData[key];
+
+            resDiv.innerHTML = `
+                <div class="text-6xl mb-4 fade-in">${data.icon}</div>
+                <h3 class="text-2xl font-bold mb-4 ${data.colorClass} fade-in">${data.title}</h3>
+                <div class="p-6 bg-gray-50 border border-gray-100 rounded-lg text-left w-full fade-in">
+                    <p class="text-gray-700 leading-relaxed">${data.desc}</p>
+                </div>
+            `;
+            resDiv.className = `bg-brand-surface border-2 rounded-xl p-8 flex flex-col justify-center items-center text-center shadow-sm transition-colors ${data.borderClass}`;
+        }
+
+        function renderRadar() {
+            if (state.radarChart) state.radarChart.destroy();
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            Chart.defaults.font.family = '"Inter", system-ui, -apple-system, sans-serif';
+            
+            state.radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['圖形介面與易用性', '安裝零配置度', '開發者API相容性', '第三方工具整合度', '高併發吞吐效能', '大型伺服器支援'],
+                    datasets: [
+                        {
+                            label: 'LM Studio',
+                            data: [10, 10, 3, 2, 2, 1],
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            borderColor: '#10B981',
+                            pointBackgroundColor: '#10B981',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Ollama',
+                            data: [3, 9, 10, 10, 5, 4],
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            borderColor: '#3B82F6',
+                            pointBackgroundColor: '#3B82F6',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'vLLM',
+                            data: [0, 1, 9, 7, 10, 10],
+                            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                            borderColor: '#EF4444',
+                            pointBackgroundColor: '#EF4444',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0,0,0,0.05)' },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            pointLabels: { font: { size: 12, weight: '500' }, color: '#4B5563' },
+                            ticks: { display: false, min: 0, max: 10 }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { backgroundColor: 'rgba(255,255,255,0.95)', titleColor: '#1F2937', bodyColor: '#4B5563', borderColor: '#E5E7EB', borderWidth: 1 }
+                    }
+                }
+            });
+            state.radarRendered = true;
+        }
+
+        function renderBar() {
+            if (state.barChart) state.barChart.destroy();
+            const ctx = document.getElementById('barChart').getContext('2d');
+            
+            state.barChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['個人桌面應用 (圖形操作)', '本地開發環境 (編碼串接)', '雲端生產伺服器 (高併發)'],
+                    datasets: [
+                        {
+                            label: 'LM Studio',
+                            data: [85, 10, 0],
+                            backgroundColor: '#10B981',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Ollama',
+                            data: [15, 85, 15],
+                            backgroundColor: '#3B82F6',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'vLLM',
+                            data: [0, 5, 85],
+                            backgroundColor: '#EF4444',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: '應用場景主導力預估 (%)' },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { backgroundColor: 'rgba(255,255,255,0.95)', titleColor: '#1F2937', bodyColor: '#4B5563', borderColor: '#E5E7EB', borderWidth: 1 }
+                    }
+                }
+            });
+            state.barRendered = true;
+        }
+
+        // Initialize event listeners
+        document.getElementById('main-nav').addEventListener('click', switchTab);
+    </script>
+</body>
+</html>
